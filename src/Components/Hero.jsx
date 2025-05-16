@@ -1,156 +1,161 @@
-import styled from "styled-components";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom"; // Thêm useNavigate
+import { motion } from "framer-motion";
+import PlacesAutocomplete, {
+  geocodeByAddress,
+  getLatLng,
+} from "react-places-autocomplete";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+import { Section } from "./Hero.styles";
 import homeImage from "../assets/hero.png";
+
+class ErrorBoundary extends React.Component {
+  state = { hasError: false };
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <div>Failed to load location search. Please try again later.</div>;
+    }
+    return this.props.children;
+  }
+}
+
 export default function Hero() {
+  const [address, setAddress] = useState("");
+  const [checkInDate, setCheckInDate] = useState(null);
+  const [checkOutDate, setCheckOutDate] = useState(null);
+  const [isGoogleMapsLoaded, setIsGoogleMapsLoaded] = useState(false);
+  const navigate = useNavigate(); // Thêm useNavigate để điều hướng
+
+  // Load Google Maps JavaScript API
+  useEffect(() => {
+    const loadGoogleMapsScript = () => {
+      if (window.google && window.google.maps) {
+        setIsGoogleMapsLoaded(true);
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = `https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=places`;
+      script.async = true;
+      script.onload = () => setIsGoogleMapsLoaded(true);
+      script.onerror = () => console.error("Failed to load Google Maps API");
+      document.head.appendChild(script);
+    };
+    loadGoogleMapsScript();
+  }, []);
+
+  const handleSelect = async (value) => {
+    try {
+      const results = await geocodeByAddress(value);
+      const latLng = await getLatLng(results[0]);
+      setAddress(value);
+      console.log("Selected location:", value, latLng);
+    } catch (error) {
+      console.error("Error selecting location:", error);
+      alert("Failed to select location. Please try again.");
+    }
+  };
+
+  const handleExplore = () => {
+    if (!address || !checkInDate || !checkOutDate) {
+      alert("Please fill in all fields before exploring!");
+      return;
+    }
+    console.log("Exploring:", { address, checkInDate, checkOutDate });
+    // Chuyển hướng đến trang "Điểm Đến" (/diem-den)
+    navigate("/diem-den", {
+      state: { address, checkInDate, checkOutDate }, // Truyền dữ liệu nếu cần
+    });
+  };
+
   return (
     <Section id="hero">
       <div className="background">
-        <img src={homeImage} alt="" />
+        <img src={homeImage} alt="Tropical Beach Destination" loading="lazy" />
       </div>
       <div className="content">
-        <div className="title">
-          <h1>TRAVEL TO EXPLORE</h1>
+        <motion.div
+          className="title"
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1 }}
+        >
+          <h1>EXPLORE THE WORLD</h1>
           <p>
-            Lorem ipsum dolor sit amet consectetur adipisicing elit. Facere
-            natus, enim ipsam magnam odit deserunt itaque? Minima earum velit
-            tenetur!
+            Unveil the most awe-inspiring destinations across the globe. Join us
+            on your next adventure and create unforgettable memories!
           </p>
-        </div>
-        <div className="search">
+        </motion.div>
+        <motion.div
+          className="search"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.8, delay: 0.5 }}
+        >
           <div className="container">
-            <label htmlFor="">Where you want to go</label>
-            <input type="text" placeholder="Search Your location" />
+            <label htmlFor="location">Where you want to go</label>
+            {!isGoogleMapsLoaded ? (
+              <div>Loading location search...</div>
+            ) : (
+              <ErrorBoundary>
+                <PlacesAutocomplete
+                  value={address}
+                  onChange={setAddress}
+                  onSelect={handleSelect}
+                >
+                  {({ getInputProps, suggestions, getSuggestionItemProps }) => (
+                    <div style={{ position: "relative", width: "100%" }}>
+                      <input
+                        {...getInputProps({
+                          placeholder: "Search Your location",
+                          className: "location-search-input",
+                        })}
+                      />
+                      <div className="autocomplete-dropdown-container">
+                        {suggestions.map((suggestion) => (
+                          <div
+                            {...getSuggestionItemProps(suggestion)}
+                            className="suggestion-item"
+                            key={suggestion.placeId}
+                          >
+                            {suggestion.description}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </PlacesAutocomplete>
+              </ErrorBoundary>
+            )}
           </div>
           <div className="container">
-            <label htmlFor="">Check-in</label>
-            <input type="date" />
+            <label htmlFor="checkin">Check-in</label>
+            <DatePicker
+              selected={checkInDate}
+              onChange={(date) => setCheckInDate(date)}
+              placeholderText="Select Check-in Date"
+              className="date-picker"
+              minDate={new Date()}
+            />
           </div>
           <div className="container">
-            <label htmlFor="">Check-out</label>
-            <input type="date" />
+            <label htmlFor="checkout">Check-out</label>
+            <DatePicker
+              selected={checkOutDate}
+              onChange={(date) => setCheckOutDate(date)}
+              placeholderText="Select Check-out Date"
+              className="date-picker"
+              minDate={checkInDate || new Date()}
+            />
           </div>
-          <button>Explore Now</button>
-        </div>
+          <button onClick={handleExplore}>Explore Now</button>
+        </motion.div>
       </div>
     </Section>
   );
 }
-const Section = styled.div`
-  position: relative;
-  margin-top: 2rem;
-  width: 100%;
-  height: 100%;
-  .background {
-    height: 100%;
-    img {
-      width: 100%;
-      filter: brightness(60%);
-    }
-  }
-  .content {
-    height: 100%;
-    width: 100%;
-    position: absolute;
-    top: 0;
-    z-index: 3;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    gap: 1rem;
-    .title {
-      color: white;
-      h1 {
-        font-size: 3rem;
-        letter-spacing: 0.2rem;
-      }
-      p {
-        text-align: center;
-        padding: 0 30vw;
-        margin-top: 0.5rem;
-        font-size: 1.2rem;
-      }
-    }
-    .search {
-      display: flex;
-      background-color: #ffffffce;
-      padding: 0.5rem;
-      border-radius: 0.5rem;
-      .container {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-direction: column;
-        padding: 0 1.5rem;
-        label {
-          font-size: 1.1rem;
-          color: #03045e;
-        }
-        input {
-          background-color: transparent;
-          border: none;
-          text-align: center;
-          color: black;
-          &[type="date"] {
-            padding-left: 3rem;
-          }
-          &::placeholder {
-            color: black;
-          }
-          &:focus {
-            outline: none;
-          }
-        }
-      }
-      button {
-        padding: 1rem;
-        cursor: pointer;
-        border-radius: 0.3rem;
-        border: none;
-        color: white;
-        background-color: #4361ee;
-        font-size: 1.1rem;
-        text-transform: uppercase;
-        transition: 0.3s ease-in-out;
-        &:hover {
-          background-color: #023e8a;
-        }
-      }
-    }
-  }
-  @media screen and (min-width: 280px) and (max-width: 980px) {
-    height: 25rem;
-    .background {
-      background-color: palegreen;
-      img {
-        height: 100%;
-      }
-    }
-    .content {
-      .title {
-        h1 {
-          font-size: 1rem;
-        }
-        p {
-          font-size: 0.8rem;
-          padding: 1vw;
-        }
-      }
-      .search {
-        flex-direction: column;
-        padding: 0.8rem;
-        gap: 0.8rem;
-        .container {
-          padding: 0 0.8rem;
-          input[type="date"] {
-            padding-left: 1rem;
-          }
-        }
-        button {
-          padding: 1rem;
-          font-size: 1rem;
-        }
-      }
-    }
-  }
-`;
